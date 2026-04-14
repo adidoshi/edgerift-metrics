@@ -1,0 +1,30 @@
+{
+  "name": "@edgerift/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsc -p tsconfig.json --watch",
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"lint not configured yet\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"tests not configured yet\"",
+    "clean": "powershell -NoProfile -Command \"Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue\""
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@edgerift/config": "workspace:*",
+    "@types/node": "^24.12.2",
+    "typescript": "~6.0.2"
+  }
+}
