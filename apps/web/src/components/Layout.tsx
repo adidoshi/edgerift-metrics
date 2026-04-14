@@ -59,7 +59,7 @@ export function Layout({ children, className }: LayoutProps) {
           <p className="text-xs text-muted-foreground text-center">
             © {new Date().getFullYear()}. Built with love using{" "}
             <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
+              href={`https://caffeine.ai}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline transition-smooth"

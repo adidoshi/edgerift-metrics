@@ -8,6 +8,8 @@ import { Home } from "./pages/Home";
 import { Journal } from "./pages/Journal";
 import { Analytics } from "./pages/Analytics";
 import { TradingHistory } from "./pages/TradingHistory";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -37,11 +39,25 @@ const tradingHistoryRoute = createRoute({
   component: TradingHistory,
 });
 
+const signInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/signin",
+  component: SignIn,
+});
+
+const signUpRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/signup",
+  component: SignUp,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   journalRoute,
   analyticsRoute,
   tradingHistoryRoute,
+  signInRoute,
+  signUpRoute,
 ]);
 
 export const router = createRouter({
