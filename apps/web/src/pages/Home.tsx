@@ -197,7 +197,7 @@ const FEATURES = [
 ] as const;
 
 const FUTURE_FEATURES = [
-  "AI-powered trade pattern recognition",
+  "CSV upload for bulk trade import",
   "Real-time broker account sync",
   "Community leaderboard & shared setups",
 ];
@@ -237,7 +237,7 @@ export const Home = () => {
               </Badge>
 
               <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.1] mb-4">
-                TradeFlow
+                Edgerift Metrics
               </h1>
               <p className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-foreground/80 leading-tight mb-6">
                 Master Your Trades.{" "}
@@ -252,7 +252,7 @@ export const Home = () => {
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                 <Button
                   size="lg"
-                  className="font-display font-semibold text-base transition-smooth"
+                  className="font-display font-semibold text-base transition-smooth cursor-pointer"
                   onClick={() => navigate({ to: "/journal" })}
                   data-ocid="hero-cta-journal"
                 >
@@ -262,7 +262,7 @@ export const Home = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="font-display font-semibold text-base border-border hover:border-primary/60 hover:bg-primary/10 transition-smooth"
+                  className="font-display font-semibold text-base text-foreground border-border hover:border-primary/60 hover:bg-primary/10 hover:text-foreground transition-smooth cursor-pointer"
                   onClick={() => navigate({ to: "/analytics" })}
                   data-ocid="hero-cta-analytics"
                 >
@@ -335,7 +335,7 @@ export const Home = () => {
             </h2>
             <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
               From logging your first trade to analysing years of data —
-              TradeFlow has every tool a disciplined trader needs.
+              Edgerift Metrics has every tool a disciplined trader needs.
             </p>
           </motion.div>
 
@@ -417,7 +417,7 @@ export const Home = () => {
             </p>
             <Button
               size="lg"
-              className="font-display font-semibold transition-smooth"
+              className="font-display font-semibold transition-smooth cursor-pointer"
               onClick={() => navigate({ to: "/journal" })}
               data-ocid="cta-banner-journal"
             >
@@ -443,24 +443,29 @@ export const Home = () => {
               <ul className="space-y-3">
                 <li>
                   <a
-                    href="mailto:hello@tradeflow.app"
+                    href="mailto:adityadoshi25@gmail.com"
                     className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-smooth text-sm"
                     data-ocid="footer-email"
                   >
                     <Mail className="w-4 h-4 shrink-0" />
-                    hello@tradeflow.app
+                    adityadoshi25@gmail.com
                   </a>
                 </li>
                 <li>
                   <a
-                    href="https://github.com/tradeflow-app"
+                    href="https://github.com/adidoshi/edgerift-metrics"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-smooth text-sm"
                     data-ocid="footer-github"
                   >
-                    {/* <Github className="w-4 h-4 shrink-0" /> */}
-                    github.com/tradeflow-app
+                    <img
+                      src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/github/github-original.svg"
+                      width={16}
+                      height={16}
+                    />
+
+                    {`Source Code </>`}
                   </a>
                 </li>
               </ul>
@@ -506,24 +511,6 @@ export const Home = () => {
                 ))}
               </ul>
             </div>
-          </div>
-
-          {/* Bottom bar */}
-          <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="font-display font-bold text-foreground text-sm tracking-tight">
-              TradeFlow
-            </span>
-            <p className="text-xs text-muted-foreground text-center">
-              © {new Date().getFullYear()}. Built with love using{" "}
-              <a
-                href={`https://caffeine.ai}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                caffeine.ai
-              </a>
-            </p>
           </div>
         </div>
       </footer>

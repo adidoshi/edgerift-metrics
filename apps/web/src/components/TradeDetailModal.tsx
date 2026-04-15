@@ -3,6 +3,7 @@ import { Button } from "../components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
@@ -67,6 +68,10 @@ export const TradeDetailModal = ({ trade, onClose }: TradeDetailModalProps) => {
         data-ocid="trade-detail-modal"
       >
         <DialogHeader className="pb-2">
+          <DialogDescription className="sr-only">
+            Detailed trade information including performance, execution notes,
+            and chart screenshot.
+          </DialogDescription>
           <div className="flex items-center justify-between">
             <DialogTitle className="font-display text-xl font-bold">
               {trade.pair}

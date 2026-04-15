@@ -152,13 +152,15 @@ function DateTimePicker({
   error?: string;
   dataOcid: string;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
         {label}
       </Label>
       <div className="flex gap-2">
-        <Popover>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
               type="button"
@@ -181,7 +183,12 @@ function DateTimePicker({
             <Calendar
               mode="single"
               selected={date}
-              onSelect={onDateChange}
+              onSelect={(selectedDate) => {
+                onDateChange(selectedDate);
+                if (selectedDate) {
+                  setIsOpen(false);
+                }
+              }}
               initialFocus
             />
           </PopoverContent>
@@ -189,7 +196,13 @@ function DateTimePicker({
         <Input
           type="time"
           value={time}
-          onChange={(e) => onTimeChange(e.target.value)}
+          onChange={(e) => {
+            const newTime = e.target.value;
+            onTimeChange(newTime);
+            setTimeout(() => {
+              if (newTime) e.target.blur();
+            }, 1000);
+          }}
           className="w-36 bg-background/50 border-input hover:border-primary/50 transition-smooth font-mono text-sm"
           data-ocid={`${dataOcid}-time`}
         />
@@ -246,8 +259,9 @@ function ImageUploadZone({
   );
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -262,6 +276,12 @@ function ImageUploadZone({
       className={`relative w-full rounded-xl border-2 border-dashed transition-smooth cursor-pointer group overflow-hidden text-left
         ${dragging ? "border-primary bg-primary/10" : "border-border/50 bg-background/30 hover:border-primary/50 hover:bg-muted/20"}`}
       onClick={() => inputRef.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
       data-ocid="image-upload-zone"
     >
       <input
@@ -306,7 +326,7 @@ function ImageUploadZone({
           </div>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -365,6 +385,8 @@ export const Journal = () => {
       ]);
     },
   });
+
+  const isUploadingTrade = isSubmitting || createTrade.isPending;
 
   const watchedInstrument = watch("instrument");
   const watchedTags = watch("tags");
@@ -429,7 +451,7 @@ export const Journal = () => {
     formData.append("grossPnL", data.grossPnL);
     formData.append("netPnL", calculatedNetPnL);
     formData.append("commissions", data.commissions);
-    formData.append("swapCharges", data.swapCharges);
+    formData.append("swapCharges", data.swapCharges.trim() || "0");
     formData.append("session", data.session);
     formData.append("strategy", data.strategy);
     formData.append("model", data.model);
@@ -447,10 +469,14 @@ export const Journal = () => {
       reset();
       setChartFile(null);
       setImageResetToken((current) => current + 1);
-      toast.success("Trade journaled successfully!", {
-        description: `${data.direction} ${data.pair} logged to your journal.`,
-        duration: 5000,
-      });
+      toast.success(
+        chartFile
+          ? "Image uploaded and trade saved!"
+          : "Trade journaled successfully!",
+        {
+          description: `${data.direction} ${data.pair} logged to your journal.`,
+        },
+      );
     } catch (error) {
       toast.error(
         isApiError(error)
@@ -832,9 +858,7 @@ export const Journal = () => {
                     placeholder="0.00"
                     data-ocid="swap-charges-input"
                     className="pl-7 bg-background/50 border-input font-mono hover:border-primary/50 transition-smooth"
-                    {...register("swapCharges", {
-                      required: "Swap charges are required.",
-                    })}
+                    {...register("swapCharges")}
                   />
                 </div>
                 {errors.swapCharges && (
@@ -1075,13 +1099,13 @@ export const Journal = () => {
             <Button
               type="submit"
               data-ocid="submit-trade"
-              disabled={isSubmitting || createTrade.isPending}
-              className="w-full h-12 text-base font-display font-semibold rounded-xl transition-smooth shadow-lg bg-primary hover:bg-primary/90"
+              disabled={isUploadingTrade}
+              className="w-full h-12 text-base font-display font-semibold rounded-xl transition-smooth shadow-lg bg-primary hover:bg-primary/90 cursor-pointer"
             >
-              {isSubmitting || createTrade.isPending ? (
+              {isUploadingTrade ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
-                  Submitting....
+                  Uploading image and saving trade...
                 </span>
               ) : (
                 "Log Trade to Journal"

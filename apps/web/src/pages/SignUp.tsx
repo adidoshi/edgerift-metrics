@@ -1,6 +1,6 @@
 import { Button } from "../components/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { api, isApiError } from "../lib/api";
 import { authStore } from "../lib/auth";
 import {
@@ -350,12 +350,14 @@ export default function SignUp() {
                 style={{ color: "oklch(0.78 0.22 92)" }}
               />
             </div>
-            <span
+
+            <Link
               className="font-display text-2xl font-bold"
               style={{ color: "oklch(0.96 0 0)" }}
+              to="/"
             >
-              TradeFlow
-            </span>
+              Edgerift Metrics
+            </Link>
           </div>
           <p className="font-mono text-xs" style={{ color: "oklch(0.62 0 0)" }}>
             Join thousands of disciplined traders
@@ -384,7 +386,8 @@ export default function SignUp() {
               Start for free
             </h1>
             <p className="text-sm" style={{ color: "oklch(0.62 0 0)" }}>
-              Create your TradeFlow account and turn your trades into insights.
+              Create your Edgerift Metrics account and turn your trades into
+              insights.
             </p>
           </div>
 
@@ -434,7 +437,6 @@ export default function SignUp() {
             {[
               "Fully decentralized — your data is yours",
               "No subscriptions, no credit card required",
-              "Instant setup with Internet Identity",
             ].map((item) => (
               <li
                 key={item}
@@ -505,7 +507,7 @@ export default function SignUp() {
             <Button
               type="submit"
               size="lg"
-              className="w-full font-display font-semibold text-base mt-2 transition-smooth"
+              className="w-full font-display font-semibold text-base mt-2 transition-smooth cursor-pointer"
               style={{
                 background: isLoading
                   ? "oklch(0.58 0.17 92)"
@@ -543,7 +545,7 @@ export default function SignUp() {
           <button
             type="button"
             onClick={() => navigate({ to: "/signin" })}
-            className="w-full rounded-lg py-2.5 text-sm font-semibold transition-smooth border"
+            className="w-full rounded-lg py-2.5 text-sm font-semibold transition-smooth border cursor-pointer"
             style={{
               background: "transparent",
               border: "1px solid oklch(0.30 0 0)",
