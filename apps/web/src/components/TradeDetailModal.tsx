@@ -168,6 +168,14 @@ export const TradeDetailModal = ({ trade, onClose }: TradeDetailModalProps) => {
             <InfoRow label="Strategy" value={trade.strategy} />
           )}
           {trade.model && <InfoRow label="Model" value={trade.model} />}
+          <InfoRow
+            label="Commissions"
+            value={formatPnl(-(trade.commissions ?? 0))}
+          />
+          <InfoRow
+            label="Swap Charges"
+            value={formatPnl(trade.swapCharges ?? 0)}
+          />
         </div>
 
         {/* Tags */}
@@ -256,6 +264,7 @@ export const TradeDetailModal = ({ trade, onClose }: TradeDetailModalProps) => {
                 src={trade.chartImageUrl}
                 alt="Trade chart"
                 className="w-full rounded-lg border border-border object-cover"
+                loading="lazy"
               />
             </div>
           </>

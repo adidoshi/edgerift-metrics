@@ -1,4 +1,5 @@
 import { Layout } from "../components/Layout";
+import { api, isApiError } from "../lib/api";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Calendar } from "../components/ui/calendar";
@@ -33,8 +34,8 @@ import {
   RULES_OPTIONS,
   SESSION_OPTIONS,
   TAG_OPTIONS,
-  type TradeInput,
 } from "../types/trading";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   CalendarIcon,
@@ -44,7 +45,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -61,6 +62,8 @@ interface FormValues {
   rMultiple: string;
   grossPnL: string;
   netPnL: string;
+  commissions: string;
+  swapCharges: string;
   tags: string[];
   session: string;
   strategy: string;
@@ -77,6 +80,34 @@ function combineDateAndTime(date: Date, time: string): bigint {
   const combined = new Date(date);
   combined.setHours(hours, minutes, 0, 0);
   return BigInt(combined.getTime()) * 1_000_000n;
+}
+
+function calculateNetPnl(
+  grossPnL: string,
+  commissions: string,
+  swapCharges: string,
+): string {
+  const trimmedGrossPnL = grossPnL.trim();
+  if (!trimmedGrossPnL) {
+    return "";
+  }
+
+  const grossValue = Number(trimmedGrossPnL);
+  if (Number.isNaN(grossValue)) {
+    return "";
+  }
+
+  const commissionsValue = commissions.trim()
+    ? Math.abs(Number(commissions))
+    : 0;
+  const swapChargesValue = swapCharges.trim() ? Number(swapCharges) : 0;
+
+  const netValue =
+    grossValue -
+    (Number.isNaN(commissionsValue) ? 0 : commissionsValue) +
+    (Number.isNaN(swapChargesValue) ? 0 : swapChargesValue);
+
+  return netValue.toFixed(2);
 }
 
 // ─── Section Wrapper ──────────────────────────────────────────────────────────
@@ -172,15 +203,36 @@ function DateTimePicker({
 
 function ImageUploadZone({
   onFileChange,
+  resetToken,
 }: {
   onFileChange: (f: File | null) => void;
+  resetToken: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
+  useEffect(() => {
+    if (preview) {
+      return () => {
+        URL.revokeObjectURL(preview);
+      };
+    }
+  }, [preview]);
+
+  useEffect(() => {
+    setPreview(null);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  }, [resetToken]);
+
   const handleFile = useCallback(
     (file: File | null) => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+
       if (!file) {
         setPreview(null);
         onFileChange(null);
@@ -190,7 +242,7 @@ function ImageUploadZone({
       setPreview(url);
       onFileChange(file);
     },
-    [onFileChange],
+    [onFileChange, preview],
   );
 
   return (
@@ -261,13 +313,9 @@ function ImageUploadZone({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const Journal = () => {
-  const createTrade = {
-    isPending: false,
-    isError: false,
-    mutateAsync: async (_input: TradeInput) => undefined,
-  };
-  const [submitted, setSubmitted] = useState(false);
+  const queryClient = useQueryClient();
   const [chartFile, setChartFile] = useState<File | null>(null);
+  const [imageResetToken, setImageResetToken] = useState(0);
 
   const {
     register,
@@ -276,6 +324,7 @@ export const Journal = () => {
     watch,
     reset,
     setValue,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
@@ -287,6 +336,8 @@ export const Journal = () => {
       rMultiple: "",
       grossPnL: "",
       netPnL: "",
+      commissions: "",
+      swapCharges: "",
       strategy: "",
       model: "",
       tradeIdea: "",
@@ -296,9 +347,43 @@ export const Journal = () => {
     },
   });
 
+  useEffect(() => {
+    register("startTime", { required: "Entry time required" });
+    register("endTime", { required: "Exit time required" });
+    register("tags", {
+      validate: (value) => value.length > 0 || "Select at least one tag.",
+    });
+    register("rulesFollowed");
+  }, [register]);
+
+  const createTrade = useMutation({
+    mutationFn: api.createTrade,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["analytics", "overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["trades"] }),
+      ]);
+    },
+  });
+
   const watchedInstrument = watch("instrument");
   const watchedTags = watch("tags");
   const watchedRules = watch("rulesFollowed");
+  const watchedGrossPnL = watch("grossPnL");
+  const watchedCommissions = watch("commissions");
+  const watchedSwapCharges = watch("swapCharges");
+  const calculatedNetPnL = calculateNetPnl(
+    watchedGrossPnL,
+    watchedCommissions,
+    watchedSwapCharges,
+  );
+
+  useEffect(() => {
+    setValue("netPnL", calculatedNetPnL, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+  }, [calculatedNetPnL, setValue]);
 
   const pairOptions = watchedInstrument ? PAIR_OPTIONS[watchedInstrument] : [];
 
@@ -309,7 +394,9 @@ export const Journal = () => {
       current.includes(tag)
         ? current.filter((t) => t !== tag)
         : [...current, tag],
+      { shouldDirty: true, shouldValidate: true },
     );
+    clearErrors("tags");
   };
 
   const toggleRule = (rule: string, checked: boolean) => {
@@ -317,41 +404,62 @@ export const Journal = () => {
     setValue(
       "rulesFollowed",
       checked ? [...current, rule] : current.filter((r) => r !== rule),
+      { shouldDirty: true },
     );
   };
 
   const onSubmit = async (data: FormValues) => {
-    if (!data.startDate || !data.endDate || !data.instrument || !data.pair)
+    if (!data.startDate || !data.endDate || !data.instrument || !data.pair) {
       return;
+    }
 
-    const input: TradeInput = {
-      startDateTime: combineDateAndTime(data.startDate, data.startTime),
-      endDateTime: combineDateAndTime(data.endDate, data.endTime),
-      instrument: data.instrument,
-      pair: data.pair,
-      direction: data.direction,
-      rMultiple: Number(data.rMultiple) || 0,
-      grossPnL: Number(data.grossPnL) || 0,
-      netPnL: Number(data.netPnL) || 0,
-      tags: data.tags,
-      session: data.session,
-      strategy: data.strategy,
-      model: data.model,
-      tradeIdea: data.tradeIdea,
-      comments: data.comments,
-      rulesFollowed: data.rulesFollowed,
-      chartImageUrl: chartFile ? chartFile.name : undefined,
-    };
+    const formData = new FormData();
+    formData.append(
+      "startDateTime",
+      combineDateAndTime(data.startDate, data.startTime).toString(),
+    );
+    formData.append(
+      "endDateTime",
+      combineDateAndTime(data.endDate, data.endTime).toString(),
+    );
+    formData.append("instrument", data.instrument);
+    formData.append("pair", data.pair);
+    formData.append("direction", data.direction);
+    formData.append("rMultiple", data.rMultiple);
+    formData.append("grossPnL", data.grossPnL);
+    formData.append("netPnL", calculatedNetPnL);
+    formData.append("commissions", data.commissions);
+    formData.append("swapCharges", data.swapCharges);
+    formData.append("session", data.session);
+    formData.append("strategy", data.strategy);
+    formData.append("model", data.model);
+    formData.append("tradeIdea", data.tradeIdea);
+    formData.append("comments", data.comments);
+    formData.append("tags", JSON.stringify(data.tags));
+    formData.append("rulesFollowed", JSON.stringify(data.rulesFollowed));
 
-    await createTrade.mutateAsync(input);
-    setSubmitted(true);
-    reset();
-    setChartFile(null);
-    toast.success("Trade journaled successfully!", {
-      description: `${data.direction} ${data.pair} logged to your journal.`,
-      duration: 5000,
-    });
-    setTimeout(() => setSubmitted(false), 3000);
+    if (chartFile) {
+      formData.append("image", chartFile);
+    }
+
+    try {
+      await createTrade.mutateAsync(formData);
+      reset();
+      setChartFile(null);
+      setImageResetToken((current) => current + 1);
+      toast.success("Trade journaled successfully!", {
+        description: `${data.direction} ${data.pair} logged to your journal.`,
+        duration: 5000,
+      });
+    } catch (error) {
+      toast.error(
+        isApiError(error)
+          ? (error.payload.message ?? "Failed to save trade.")
+          : error instanceof Error
+            ? error.message
+            : "Failed to save trade.",
+      );
+    }
   };
 
   return (
@@ -396,8 +504,15 @@ export const Journal = () => {
                       date={field.value}
                       time={watch("startTime")}
                       onDateChange={field.onChange}
-                      onTimeChange={(t) => setValue("startTime", t)}
-                      error={errors.startDate?.message}
+                      onTimeChange={(t) =>
+                        setValue("startTime", t, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      error={
+                        errors.startDate?.message ?? errors.startTime?.message
+                      }
                       dataOcid="start-datetime"
                     />
                   )}
@@ -412,8 +527,13 @@ export const Journal = () => {
                       date={field.value}
                       time={watch("endTime")}
                       onDateChange={field.onChange}
-                      onTimeChange={(t) => setValue("endTime", t)}
-                      error={errors.endDate?.message}
+                      onTimeChange={(t) =>
+                        setValue("endTime", t, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      error={errors.endDate?.message ?? errors.endTime?.message}
                       dataOcid="end-datetime"
                     />
                   )}
@@ -435,7 +555,11 @@ export const Journal = () => {
                         value={field.value ?? ""}
                         onValueChange={(v) => {
                           field.onChange(v as Instrument);
-                          setValue("pair", "");
+                          setValue("pair", "", {
+                            shouldDirty: true,
+                            shouldValidate: false,
+                          });
+                          clearErrors("pair");
                         }}
                       >
                         <SelectTrigger
@@ -597,9 +721,16 @@ export const Journal = () => {
                     placeholder="0.00"
                     data-ocid="r-multiple-input"
                     className="pl-7 bg-background/50 border-input font-mono hover:border-primary/50 transition-smooth"
-                    {...register("rMultiple")}
+                    {...register("rMultiple", {
+                      required: "R multiple is required.",
+                    })}
                   />
                 </div>
+                {errors.rMultiple && (
+                  <p className="text-xs text-destructive">
+                    {errors.rMultiple.message}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label
@@ -619,9 +750,16 @@ export const Journal = () => {
                     placeholder="0.00"
                     data-ocid="gross-pnl-input"
                     className="pl-7 bg-background/50 border-input font-mono hover:border-primary/50 transition-smooth"
-                    {...register("grossPnL")}
+                    {...register("grossPnL", {
+                      required: "Gross PnL is required.",
+                    })}
                   />
                 </div>
+                {errors.grossPnL && (
+                  <p className="text-xs text-destructive">
+                    {errors.grossPnL.message}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label
@@ -641,9 +779,69 @@ export const Journal = () => {
                     placeholder="0.00"
                     data-ocid="net-pnl-input"
                     className="pl-7 bg-background/50 border-input font-mono hover:border-primary/50 transition-smooth"
-                    {...register("netPnL")}
+                    value={calculatedNetPnL}
+                    readOnly
+                    disabled
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="commissions"
+                  className="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Commissions
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground pointer-events-none">
+                    $
+                  </span>
+                  <Input
+                    id="commissions"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    data-ocid="commissions-input"
+                    className="pl-7 bg-background/50 border-input font-mono hover:border-primary/50 transition-smooth"
+                    {...register("commissions", {
+                      required: "Commissions are required.",
+                    })}
+                  />
+                </div>
+                {errors.commissions && (
+                  <p className="text-xs text-destructive">
+                    {errors.commissions.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="swapCharges"
+                  className="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Swap Charges
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground pointer-events-none">
+                    $
+                  </span>
+                  <Input
+                    id="swapCharges"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    data-ocid="swap-charges-input"
+                    className="pl-7 bg-background/50 border-input font-mono hover:border-primary/50 transition-smooth"
+                    {...register("swapCharges", {
+                      required: "Swap charges are required.",
+                    })}
+                  />
+                </div>
+                {errors.swapCharges && (
+                  <p className="text-xs text-destructive">
+                    {errors.swapCharges.message}
+                  </p>
+                )}
               </div>
             </div>
           </FormSection>
@@ -660,6 +858,7 @@ export const Journal = () => {
                   <Controller
                     control={control}
                     name="session"
+                    rules={{ required: "Session is required." }}
                     render={({ field }) => (
                       <Select
                         value={field.value}
@@ -681,6 +880,11 @@ export const Journal = () => {
                       </Select>
                     )}
                   />
+                  {errors.session && (
+                    <p className="text-xs text-destructive">
+                      {errors.session.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label
@@ -694,8 +898,15 @@ export const Journal = () => {
                     placeholder="e.g. ICT Liquidity Sweep"
                     data-ocid="strategy-input"
                     className="bg-background/50 border-input hover:border-primary/50 transition-smooth"
-                    {...register("strategy")}
+                    {...register("strategy", {
+                      required: "Strategy is required.",
+                    })}
                   />
+                  {errors.strategy && (
+                    <p className="text-xs text-destructive">
+                      {errors.strategy.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label
@@ -709,8 +920,15 @@ export const Journal = () => {
                     placeholder="e.g. Silver Bullet"
                     data-ocid="model-input"
                     className="bg-background/50 border-input hover:border-primary/50 transition-smooth"
-                    {...register("model")}
+                    {...register("model", {
+                      required: "Trading model is required.",
+                    })}
                   />
+                  {errors.model && (
+                    <p className="text-xs text-destructive">
+                      {errors.model.message}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -740,6 +958,11 @@ export const Journal = () => {
                     );
                   })}
                 </div>
+                {errors.tags && (
+                  <p className="text-xs text-destructive">
+                    {errors.tags.message}
+                  </p>
+                )}
               </div>
 
               {/* Trade Idea + Comments */}
@@ -757,8 +980,15 @@ export const Journal = () => {
                     rows={3}
                     data-ocid="trade-idea-input"
                     className="bg-background/50 border-input resize-none hover:border-primary/50 transition-smooth"
-                    {...register("tradeIdea")}
+                    {...register("tradeIdea", {
+                      required: "Trade idea is required.",
+                    })}
                   />
+                  {errors.tradeIdea && (
+                    <p className="text-xs text-destructive">
+                      {errors.tradeIdea.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label
@@ -773,8 +1003,15 @@ export const Journal = () => {
                     rows={3}
                     data-ocid="comments-input"
                     className="bg-background/50 border-input resize-none hover:border-primary/50 transition-smooth"
-                    {...register("comments")}
+                    {...register("comments", {
+                      required: "Comments are required.",
+                    })}
                   />
+                  {errors.comments && (
+                    <p className="text-xs text-destructive">
+                      {errors.comments.message}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -825,7 +1062,10 @@ export const Journal = () => {
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Chart Screenshot
                 </Label>
-                <ImageUploadZone onFileChange={setChartFile} />
+                <ImageUploadZone
+                  onFileChange={setChartFile}
+                  resetToken={imageResetToken}
+                />
               </div>
             </div>
           </FormSection>
@@ -836,22 +1076,12 @@ export const Journal = () => {
               type="submit"
               data-ocid="submit-trade"
               disabled={isSubmitting || createTrade.isPending}
-              className={`w-full h-12 text-base font-display font-semibold rounded-xl transition-smooth shadow-lg
-                ${
-                  submitted
-                    ? "bg-chart-5/90 hover:bg-chart-5"
-                    : "bg-primary hover:bg-primary/90"
-                }`}
+              className="w-full h-12 text-base font-display font-semibold rounded-xl transition-smooth shadow-lg bg-primary hover:bg-primary/90"
             >
               {isSubmitting || createTrade.isPending ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
-                  Logging trade…
-                </span>
-              ) : submitted ? (
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5" />
-                  Trade Logged!
+                  Submitting....
                 </span>
               ) : (
                 "Log Trade to Journal"

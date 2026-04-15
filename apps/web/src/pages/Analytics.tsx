@@ -1,14 +1,17 @@
 import { Layout } from "../components/Layout";
+import { api } from "../lib/api";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { Input } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Trade } from "../types/trading";
-import { Direction, Instrument } from "../types/trading";
 import {
   eachDayOfInterval,
   endOfMonth,
@@ -26,6 +29,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -42,63 +46,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-// ── Mock data generator ────────────────────────────────────────────────────────
-
-function generateMockTrades(): Trade[] {
-  const sessions = [
-    "London",
-    "New York",
-    "Tokyo",
-    "Sydney",
-    "London/NY Overlap",
-  ];
-  const pairs = [
-    "EUR/USD",
-    "GBP/USD",
-    "XAUUSD",
-    "NAS100",
-    "USD/JPY",
-    "US30",
-    "XAGUSD",
-  ];
-  const instruments: Instrument[] = [
-    Instrument.Forex,
-    Instrument.Forex,
-    Instrument.Commodity,
-    Instrument.Index,
-    Instrument.Forex,
-    Instrument.Index,
-    Instrument.Commodity,
-  ];
-  const now = Date.now();
-
-  return Array.from({ length: 34 }, (_, i) => {
-    const daysAgo = Math.floor(i * 0.9);
-    const ts = BigInt(subDays(new Date(now), daysAgo).getTime()) * 1_000_000n;
-    const pairIdx = i % pairs.length;
-    const netPnL = Number.parseFloat(((Math.random() - 0.42) * 420).toFixed(2));
-    return {
-      id: `mock-${i}`,
-      startDateTime: ts,
-      endDateTime: ts + 3_600_000_000_000n,
-      instrument: instruments[pairIdx],
-      pair: pairs[pairIdx],
-      direction: Math.random() > 0.5 ? Direction.Buy : Direction.Sell,
-      rMultiple: Number.parseFloat((netPnL / 100).toFixed(2)),
-      grossPnL: Number.parseFloat((netPnL * 1.08).toFixed(2)),
-      netPnL,
-      tags: [],
-      session: sessions[i % sessions.length],
-      strategy: "ICT",
-      model: "Breaker",
-      tradeIdea: "",
-      comments: "",
-      rulesFollowed: [],
-      createdAt: ts,
-    };
-  });
-}
+import { toast } from "sonner";
 
 // ── Derived analytics ──────────────────────────────────────────────────────────
 
@@ -265,21 +213,54 @@ function ChartSkeleton({ height = 280 }: { height?: number }) {
   return <Skeleton className="w-full rounded-lg" style={{ height }} />;
 }
 
+function EmptyAnalyticsState({
+  title,
+  description,
+  height = 220,
+}: {
+  title: string;
+  description: string;
+  height?: number;
+}) {
+  return (
+    <div
+      className="flex items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 text-center"
+      style={{ minHeight: height }}
+    >
+      <div className="max-w-xs space-y-2">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Analytics Page ────────────────────────────────────────────────────────
 
 export const Analytics = () => {
-  // Data hooks are temporarily disabled so the UI can render before the data
-  // layer is wired up.
-  const summaryLoading = false;
-  const rawTrades: Trade[] = [];
-  const tradesLoading = false;
+  const queryClient = useQueryClient();
+  const { data: trades = [], isLoading: isTradesLoading } = useQuery({
+    queryKey: ["trades"],
+    queryFn: api.getTrades,
+  });
+  const { data: accountSettings, isLoading: isSettingsLoading } = useQuery({
+    queryKey: ["account-settings"],
+    queryFn: api.getAccountSettings,
+  });
 
-  const trades: Trade[] =
-    rawTrades && rawTrades.length > 0 ? rawTrades : generateMockTrades();
-  const isLoading = summaryLoading || tradesLoading;
-  const usingMock = !rawTrades || rawTrades.length === 0;
+  const [startingBalanceInput, setStartingBalanceInput] = useState("0.00");
 
-  const startBal = 10000;
+  useEffect(() => {
+    if (accountSettings) {
+      setStartingBalanceInput(accountSettings.startingBalance.toFixed(2));
+    }
+  }, [accountSettings]);
+
+  const startBal = accountSettings?.startingBalance ?? 0;
+  const hasTrades = trades.length > 0;
+  const isLoading = isTradesLoading || isSettingsLoading;
   const totalPnL = trades.reduce((s, t) => s + t.netPnL, 0);
   const currentBalance = startBal + totalPnL;
   const tradingDays = BigInt(
@@ -335,6 +316,56 @@ export const Analytics = () => {
     },
   ];
 
+  const parsedStartingBalance = Number(startingBalanceInput);
+  const hasValidStartingBalance =
+    startingBalanceInput.trim().length > 0 &&
+    Number.isFinite(parsedStartingBalance) &&
+    parsedStartingBalance >= 0;
+  const hasStartingBalanceChanged = hasValidStartingBalance
+    ? Math.abs(parsedStartingBalance - startBal) > 0.0001
+    : false;
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: api.updateAccountSettings,
+    onMutate: () => {
+      toast.loading("Saving starting balance...", {
+        id: "account-settings-save",
+      });
+    },
+    onSuccess: (nextSettings) => {
+      toast.dismiss("account-settings-save");
+      queryClient.setQueryData(["account-settings"], nextSettings);
+      setStartingBalanceInput(nextSettings.startingBalance.toFixed(2));
+      toast.success("Starting balance updated.", {
+        id: "account-settings-success",
+      });
+    },
+    onError: (error) => {
+      toast.dismiss("account-settings-save");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save settings",
+        { id: "account-settings-error" },
+      );
+    },
+  });
+
+  const handleSaveStartingBalance = () => {
+    if (!hasValidStartingBalance) {
+      toast.error("Enter a valid non-negative starting balance.", {
+        id: "account-settings-invalid",
+      });
+      return;
+    }
+
+    if (!hasStartingBalanceChanged) {
+      return;
+    }
+
+    updateSettingsMutation.mutate({
+      startingBalance: Number(parsedStartingBalance.toFixed(2)),
+    });
+  };
+
   return (
     <Layout>
       <div className="flex-1 p-4 md:p-6 space-y-6 max-w-350 mx-auto">
@@ -348,16 +379,80 @@ export const Analytics = () => {
               Performance insights & trading metrics
             </p>
           </div>
-          {usingMock && (
+          {!isLoading && trades.length > 0 && (
             <Badge
               variant="outline"
               className="text-xs border-primary/40 text-primary"
-              data-ocid="mock-badge"
+              data-ocid="live-badge"
             >
-              Sample Data
+              Live Data
             </Badge>
           )}
         </div>
+
+        <Card className="bg-card border-border" data-ocid="account-settings">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Account settings
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Set the starting balance used to calculate account equity
+                  separately from total trade P&amp;L.
+                </p>
+              </div>
+
+              <div className="flex w-full flex-col gap-3 sm:max-w-md sm:flex-row sm:items-end">
+                <div className="flex-1 space-y-2">
+                  <label
+                    htmlFor="starting-balance"
+                    className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                  >
+                    Starting Balance
+                  </label>
+                  <Input
+                    id="starting-balance"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={startingBalanceInput}
+                    onChange={(event) => {
+                      setStartingBalanceInput(event.target.value);
+                    }}
+                    disabled={
+                      isSettingsLoading || updateSettingsMutation.isPending
+                    }
+                    aria-invalid={
+                      startingBalanceInput.trim().length > 0 &&
+                      !hasValidStartingBalance
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleSaveStartingBalance}
+                  disabled={
+                    isSettingsLoading ||
+                    updateSettingsMutation.isPending ||
+                    !hasValidStartingBalance ||
+                    !hasStartingBalanceChanged
+                  }
+                >
+                  {updateSettingsMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </div>
+
+            {startingBalanceInput.trim().length > 0 &&
+              !hasValidStartingBalance && (
+                <p className="mt-3 text-sm text-red-400">
+                  Enter a valid non-negative amount.
+                </p>
+              )}
+          </CardContent>
+        </Card>
 
         {/* ── Stat Cards ─────────────────────────────────────────────────── */}
         <div
@@ -371,12 +466,16 @@ export const Analytics = () => {
           ) : (
             <>
               <StatCard
-                label="Account Balance"
+                label="Account Equity"
                 value={`$${currentBalance.toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}`}
-                sub={`Started at $${startBal.toLocaleString()}`}
+                sub={
+                  hasTrades
+                    ? `Start $${startBal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} + ${trades.length} tracked trade${trades.length !== 1 ? "s" : ""}`
+                    : `Start ${startBal.toLocaleString("en-US", { style: "currency", currency: "USD" })}`
+                }
                 trend={balanceTrend}
                 icon={<DollarSign className="w-4 h-4 text-primary" />}
                 accentClass="bg-primary"
@@ -424,12 +523,18 @@ export const Analytics = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-display flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-primary" />
-                Balance Journey
+                Equity Curve
               </CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <ChartSkeleton height={280} />
+              ) : !hasTrades ? (
+                <EmptyAnalyticsState
+                  title="No equity curve yet"
+                  description="Add your first journal entry to start plotting account equity over time."
+                  height={280}
+                />
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
                   <AreaChart
@@ -475,7 +580,7 @@ export const Analytics = () => {
                           typeof value === "number" || typeof value === "string"
                             ? value
                             : undefined,
-                          "Balance",
+                          "Equity",
                         )
                       }
                     />
@@ -504,6 +609,12 @@ export const Analytics = () => {
             <CardContent className="flex flex-col items-center">
               {isLoading ? (
                 <ChartSkeleton height={240} />
+              ) : !hasTrades ? (
+                <EmptyAnalyticsState
+                  title="No win-rate data yet"
+                  description="Wins and losses will appear here once trades are recorded."
+                  height={240}
+                />
               ) : (
                 <>
                   <div className="relative">
@@ -572,6 +683,12 @@ export const Analytics = () => {
             <CardContent>
               {isLoading ? (
                 <ChartSkeleton height={240} />
+              ) : !hasTrades ? (
+                <EmptyAnalyticsState
+                  title="No session performance yet"
+                  description="Session-level P&L appears after trades are tagged with their session."
+                  height={240}
+                />
               ) : (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart
@@ -635,6 +752,12 @@ export const Analytics = () => {
             <CardContent className="flex flex-col items-center">
               {isLoading ? (
                 <ChartSkeleton height={240} />
+              ) : !hasTrades ? (
+                <EmptyAnalyticsState
+                  title="No instrument mix yet"
+                  description="This chart will break down where your trades are concentrated once you log them."
+                  height={240}
+                />
               ) : (
                 <>
                   <ResponsiveContainer width="100%" height={200}>
@@ -692,6 +815,12 @@ export const Analytics = () => {
             <CardContent className="flex flex-col items-center">
               {isLoading ? (
                 <ChartSkeleton height={200} />
+              ) : !hasTrades ? (
+                <EmptyAnalyticsState
+                  title="No R-multiple data yet"
+                  description="Average, best, and worst R values will populate from completed trades."
+                  height={200}
+                />
               ) : (
                 <>
                   <div className="relative">
@@ -762,6 +891,12 @@ export const Analytics = () => {
             <CardContent>
               {isLoading ? (
                 <ChartSkeleton height={220} />
+              ) : !hasTrades ? (
+                <EmptyAnalyticsState
+                  title="No trading days in the calendar yet"
+                  description="Daily P&L markers will show up here as soon as you submit trades this month."
+                  height={220}
+                />
               ) : (
                 <div className="w-full">
                   {/* Week day headers */}

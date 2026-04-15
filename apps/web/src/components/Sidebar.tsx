@@ -1,4 +1,6 @@
 import { Button } from "../components/ui/button";
+import { useTheme } from "../hooks/use-theme";
+import { authStore, useAuthStore } from "../lib/auth";
 import { cn } from "../lib/utils";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
@@ -6,11 +8,15 @@ import {
   BookOpen,
   Clock,
   Home,
+  Lightbulb,
+  Moon,
+  Sun,
   TrendingUp,
   X,
   LogIn,
   LogOut,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface NavItem {
   label: string;
@@ -22,6 +28,7 @@ const navItems: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Journal", href: "/journal", icon: BookOpen },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "AI Insights", href: "/ai-insights", icon: Lightbulb },
   { label: "Trading History", href: "/trading-history", icon: Clock },
 ];
 
@@ -33,15 +40,16 @@ function SidebarContent({ onClose }: SidebarContentProps) {
   const routerState = useRouterState();
   const pathname = routerState.location.pathname;
   const navigate = useNavigate();
-  //  const { identity, clear } = useInternetIdentity();
+  const user = useAuthStore((state) => state.user);
+  const { theme, toggleTheme } = useTheme();
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
 
-  const isAuthenticated = false;
-  const truncatedPrincipal = "aaaaa...bbbb";
+  const isAuthenticated = Boolean(user);
+  const displayName = user ? `${user.firstName} ${user.lastName}` : "";
 
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border">
@@ -101,6 +109,24 @@ function SidebarContent({ onClose }: SidebarContentProps) {
 
       {/* Auth section */}
       <div className="px-3 py-4 border-t border-sidebar-border space-y-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2.5 font-medium transition-smooth text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          onClick={() => {
+            toggleTheme();
+            onClose?.();
+          }}
+          data-ocid="nav-theme-toggle"
+        >
+          {theme === "dark" ? (
+            <Sun className="w-4 h-4" />
+          ) : (
+            <Moon className="w-4 h-4" />
+          )}
+          {theme === "dark" ? "Switch to Light" : "Switch to Dark"}
+        </Button>
+
         {isAuthenticated ? (
           <>
             {/* Principal display */}
@@ -125,10 +151,10 @@ function SidebarContent({ onClose }: SidebarContentProps) {
                   className="font-mono text-xs truncate"
                   style={{ color: "oklch(0.72 0.21 262)" }}
                 >
-                  {truncatedPrincipal}
+                  {displayName}
                 </p>
                 <p className="text-xs" style={{ color: "oklch(0.50 0 0)" }}>
-                  Connected
+                  {user?.email}
                 </p>
               </div>
               <span
@@ -142,7 +168,14 @@ function SidebarContent({ onClose }: SidebarContentProps) {
               variant="ghost"
               size="sm"
               className="w-full justify-start gap-2.5 font-medium transition-smooth text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => {}}
+              onClick={() => {
+                authStore.clearAuth();
+                toast.success("You have been logged out.", {
+                  id: "logout-success",
+                });
+                onClose?.();
+                navigate({ to: "/signin" });
+              }}
               data-ocid="nav-logout-button"
             >
               <LogOut className="w-4 h-4" />
