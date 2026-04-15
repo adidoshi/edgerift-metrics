@@ -1,6 +1,8 @@
 import { Button } from "../components/ui/button";
-// import { useInternetIdentity } from "@caffeineai/core-infrastructure";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { api, isApiError } from "../lib/api";
+import { authStore } from "../lib/auth";
 import {
   BarChart3,
   BookOpen,
@@ -15,6 +17,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
+import { toast } from "sonner";
 
 const PERKS = [
   {
@@ -58,16 +61,6 @@ interface FormErrors {
 
 export default function SignUp() {
   const navigate = useNavigate();
-  //   const { login, identity, isLoggingIn } = useInternetIdentity();
-
-  // Redirect if already authenticated
-  //   useEffect(() => {
-  //     if (identity) {
-  //       navigate({ to: "/" });
-  //     }
-  //   }, [identity, navigate]);
-
-  const isLoading = false;
 
   const [form, setForm] = useState<FormData>({
     firstName: "",
@@ -79,7 +72,161 @@ export default function SignUp() {
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-  //   const [isLoading, setIsLoading] = useState(false);
+  const [touched, setTouched] = useState<
+    Partial<Record<keyof FormData, boolean>>
+  >({});
+
+  const applyServerError = (error: unknown) => {
+    if (!isApiError(error)) {
+      setErrors({
+        form:
+          error instanceof Error ? error.message : "Account creation failed",
+      });
+      return;
+    }
+
+    const message = error.payload.message ?? "Account creation failed";
+    const fieldErrors = error.payload.issues?.fieldErrors;
+
+    if (message === "Email already exists") {
+      setErrors({
+        email: "An account with this email already exists.",
+        form: "Use a different email or sign in instead.",
+      });
+      return;
+    }
+
+    setErrors({
+      firstName: fieldErrors?.firstName?.[0],
+      lastName: fieldErrors?.lastName?.[0],
+      email: fieldErrors?.email?.[0],
+      password: fieldErrors?.password?.[0],
+      confirmPassword: fieldErrors?.confirmPassword?.[0],
+      form: error.payload.issues?.formErrors?.[0] ?? message,
+    });
+  };
+
+  const registerMutation = useMutation({
+    mutationFn: api.register,
+    onMutate: () => {
+      toast.loading("Creating your account...", { id: "signup-request" });
+    },
+    onSuccess: (session) => {
+      toast.dismiss("signup-request");
+      authStore.setAuth(session);
+      setErrors({});
+      toast.success(`Account created. Welcome, ${session.user.firstName}.`, {
+        id: "signup-success",
+      });
+      void navigate({ to: "/" });
+    },
+    onError: (error) => {
+      toast.dismiss("signup-request");
+      applyServerError(error);
+      toast.error(
+        isApiError(error)
+          ? (error.payload.message ?? "Account creation failed")
+          : error instanceof Error
+            ? error.message
+            : "Account creation failed",
+        { id: "signup-error" },
+      );
+    },
+  });
+
+  const isLoading = registerMutation.isPending;
+
+  const validateForm = (values: FormData): FormErrors => {
+    const nextErrors: FormErrors = {};
+    const firstName = values.firstName.trim();
+    const lastName = values.lastName.trim();
+    const email = values.email.trim();
+
+    if (!firstName) {
+      nextErrors.firstName = "First name is required.";
+    }
+
+    if (!lastName) {
+      nextErrors.lastName = "Last name is required.";
+    }
+
+    if (!email) {
+      nextErrors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+
+    if (!values.password) {
+      nextErrors.password = "Password is required.";
+    } else if (values.password.length < 8) {
+      nextErrors.password = "Password must be at least 8 characters.";
+    }
+
+    if (!values.confirmPassword) {
+      nextErrors.confirmPassword = "Please confirm your password.";
+    } else if (values.password !== values.confirmPassword) {
+      nextErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    return nextErrors;
+  };
+
+  const validateField = (field: keyof FormData, values: FormData) =>
+    validateForm(values)[field];
+
+  const updateField = (field: keyof FormData, value: string) => {
+    setForm((current) => {
+      const nextForm = { ...current, [field]: value };
+
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: touched[field] ? validateField(field, nextForm) : undefined,
+        confirmPassword:
+          field === "password" && touched.confirmPassword
+            ? validateField("confirmPassword", nextForm)
+            : currentErrors.confirmPassword,
+        form: undefined,
+      }));
+
+      return nextForm;
+    });
+  };
+
+  const handleBlur = (field: keyof FormData) => {
+    setTouched((current) => ({ ...current, [field]: true }));
+    setErrors((current) => ({
+      ...current,
+      [field]: validateField(field, form),
+      confirmPassword:
+        field === "password" && touched.confirmPassword
+          ? validateField("confirmPassword", form)
+          : current.confirmPassword,
+    }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextErrors = validateForm(form);
+    if (
+      nextErrors.firstName ||
+      nextErrors.lastName ||
+      nextErrors.email ||
+      nextErrors.password ||
+      nextErrors.confirmPassword
+    ) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    await registerMutation.mutateAsync({
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      confirmPassword: form.confirmPassword,
+    });
+  };
 
   const field = (
     id: string,
@@ -112,7 +259,8 @@ export default function SignUp() {
           }
           placeholder={placeholder}
           value={form[field]}
-          onChange={() => {}}
+          onChange={(event) => updateField(field, event.target.value)}
+          onBlur={() => handleBlur(field)}
           className="h-11"
           style={{
             background: "oklch(0.18 0 0)",
@@ -302,7 +450,7 @@ export default function SignUp() {
             ))}
           </ul>
 
-          <form onSubmit={() => {}} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Form error */}
             {errors.form && (
               <motion.div

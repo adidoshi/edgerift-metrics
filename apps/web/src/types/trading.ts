@@ -25,6 +25,8 @@ export interface Trade {
   rMultiple: number;
   grossPnL: number;
   netPnL: number;
+  commissions?: number;
+  swapCharges?: number;
   tags: string[];
   session: string;
   strategy: string;

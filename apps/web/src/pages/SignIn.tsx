@@ -1,31 +1,153 @@
 import { Button } from "../components/ui/button";
-// import { useInternetIdentity } from "@caffeineai/core-infrastructure";
+import { api } from "../lib/api";
+import { authStore } from "../lib/auth";
+import { isApiError } from "../lib/api";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LogIn, ShieldCheck, TrendingUp, Zap, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
-// import { useEffect } from "react";
+import { toast } from "sonner";
+
+type SignInForm = {
+  email: string;
+  password: string;
+};
+
+type SignInErrors = {
+  email?: string;
+  password?: string;
+  form?: string;
+};
 
 export default function SignIn() {
   const navigate = useNavigate();
-  //   const { login, identity, isLoggingIn } = useInternetIdentity();
+  const [form, setForm] = useState<SignInForm>({
+    email: "",
+    password: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<SignInErrors>({});
+  const [touched, setTouched] = useState<
+    Partial<Record<keyof SignInForm, boolean>>
+  >({});
 
-  // Redirect if already authenticated
-  //   useEffect(() => {
-  //     if (identity) {
-  //       navigate({ to: "/" });
-  //     }
-  //   }, [identity, navigate]);
+  const applyServerError = (error: unknown) => {
+    if (!isApiError(error)) {
+      setErrors({
+        form: error instanceof Error ? error.message : "Sign in failed",
+      });
+      return;
+    }
 
-  const [errors, setErrors] = useState<{
-    email?: string;
-    password?: string;
-    form?: string;
-  }>({});
+    const message = error.payload.message ?? "Sign in failed";
+    const fieldErrors = error.payload.issues?.fieldErrors;
 
-  const isLoading = false;
+    if (message === "Invalid credentials") {
+      setErrors({
+        password: "Invalid email or password.",
+        form: "Invalid email or password.",
+      });
+      return;
+    }
+
+    setErrors({
+      email: fieldErrors?.email?.[0],
+      password: fieldErrors?.password?.[0],
+      form: error.payload.issues?.formErrors?.[0] ?? message,
+    });
+  };
+
+  const loginMutation = useMutation({
+    mutationFn: api.login,
+    onMutate: () => {
+      toast.loading("Signing you in...", { id: "signin-request" });
+    },
+    onSuccess: (session) => {
+      toast.dismiss("signin-request");
+      authStore.setAuth(session);
+      setErrors({});
+      toast.success(`Welcome back, ${session.user.firstName}.`, {
+        id: "signin-success",
+      });
+      void navigate({ to: "/" });
+    },
+    onError: (error) => {
+      toast.dismiss("signin-request");
+      applyServerError(error);
+      toast.error(
+        isApiError(error)
+          ? (error.payload.message ?? "Sign in failed")
+          : error instanceof Error
+            ? error.message
+            : "Sign in failed",
+        { id: "signin-error" },
+      );
+    },
+  });
+
+  const isLoading = loginMutation.isPending;
+
+  const validateForm = (values: SignInForm): SignInErrors => {
+    const nextErrors: SignInErrors = {};
+    const email = values.email.trim();
+
+    if (!email) {
+      nextErrors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+
+    if (!values.password) {
+      nextErrors.password = "Password is required.";
+    } else if (values.password.length < 8) {
+      nextErrors.password = "Password must be at least 8 characters.";
+    }
+
+    return nextErrors;
+  };
+
+  const validateField = (field: keyof SignInForm, values: SignInForm) =>
+    validateForm(values)[field];
+
+  const updateField = (field: keyof SignInForm, value: string) => {
+    setForm((current) => {
+      const nextForm = { ...current, [field]: value };
+
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: touched[field] ? validateField(field, nextForm) : undefined,
+        form: undefined,
+      }));
+
+      return nextForm;
+    });
+  };
+
+  const handleBlur = (field: keyof SignInForm) => {
+    setTouched((current) => ({ ...current, [field]: true }));
+    setErrors((current) => ({
+      ...current,
+      [field]: validateField(field, form),
+    }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextErrors = validateForm(form);
+    if (nextErrors.email || nextErrors.password) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    await loginMutation.mutateAsync({
+      email: form.email.trim(),
+      password: form.password,
+    });
+  };
 
   return (
     <div
@@ -144,8 +266,7 @@ export default function SignIn() {
             ))}
           </div>
 
-          {/* Internet Identity button */}
-          <form onSubmit={() => {}} className="space-y-5" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {/* Form-level error */}
             {errors.form && (
               <motion.div
@@ -177,8 +298,9 @@ export default function SignIn() {
                 type="email"
                 autoComplete="email"
                 placeholder="you@example.com"
-                value={""}
-                onChange={() => {}}
+                value={form.email}
+                onChange={(event) => updateField("email", event.target.value)}
+                onBlur={() => handleBlur("email")}
                 className="h-11"
                 style={{
                   background: "oklch(0.18 0 0)",
@@ -212,11 +334,14 @@ export default function SignIn() {
               <div className="relative">
                 <Input
                   id="signin-password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  value={""}
-                  onChange={() => {}}
+                  value={form.password}
+                  onChange={(event) =>
+                    updateField("password", event.target.value)
+                  }
+                  onBlur={() => handleBlur("password")}
                   className="h-11 pr-10"
                   style={{
                     background: "oklch(0.18 0 0)",
@@ -231,10 +356,10 @@ export default function SignIn() {
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                   style={{ color: "oklch(0.48 0 0)" }}
-                  onClick={() => {}}
-                  aria-label={false ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {false ? (
+                  {showPassword ? (
                     <EyeOff className="w-4 h-4" />
                   ) : (
                     <Eye className="w-4 h-4" />

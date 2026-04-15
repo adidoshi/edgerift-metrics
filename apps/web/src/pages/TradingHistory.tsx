@@ -1,4 +1,5 @@
 import { Layout } from "../components/Layout";
+import { api, isApiError } from "../lib/api";
 import { TradeDetailModal } from "../components/TradeDetailModal";
 import {
   AlertDialog,
@@ -23,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Direction, Instrument, type Trade } from "../types/trading";
 import {
   ArrowUpDown,
@@ -39,6 +41,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -75,63 +78,6 @@ function pnlColor(val: number) {
 function formatPnl(val: number) {
   const sign = val > 0 ? "+" : "";
   return `${sign}$${val.toFixed(2)}`;
-}
-
-function generateMockTrades(): Trade[] {
-  const pairs = [
-    { instrument: Instrument.Forex, pair: "EUR/USD" },
-    { instrument: Instrument.Forex, pair: "GBP/USD" },
-    { instrument: Instrument.Forex, pair: "USD/JPY" },
-    { instrument: Instrument.Commodity, pair: "XAUUSD" },
-    { instrument: Instrument.Commodity, pair: "XAGUSD" },
-    { instrument: Instrument.Index, pair: "NAS100" },
-    { instrument: Instrument.Index, pair: "US30" },
-  ];
-  const sessions = [
-    "London",
-    "New York",
-    "Tokyo",
-    "Sydney",
-    "London/NY Overlap",
-  ];
-  const strategies = [
-    "Liquidity Sweep",
-    "Breaker Retest",
-    "Opening Range",
-    "Trend Continuation",
-    "Mean Reversion",
-  ];
-
-  return Array.from({ length: 18 }, (_, index) => {
-    const base = pairs[index % pairs.length];
-    const startMs = Date.now() - index * 86_400_000 - (index % 4) * 7_200_000;
-    const startDateTime = BigInt(startMs) * 1_000_000n;
-    const endDateTime = BigInt(startMs + 3_600_000) * 1_000_000n;
-    const netPnL = Number.parseFloat((((index % 5) - 2) * 84.35).toFixed(2));
-    const grossPnL = Number.parseFloat((netPnL * 1.08).toFixed(2));
-    const rMultiple = Number.parseFloat((netPnL / 100).toFixed(2));
-
-    return {
-      id: `mock-trade-${index}`,
-      startDateTime,
-      endDateTime,
-      instrument: base.instrument,
-      pair: base.pair,
-      direction: index % 2 === 0 ? Direction.Buy : Direction.Sell,
-      rMultiple,
-      grossPnL,
-      netPnL,
-      tags: index % 2 === 0 ? ["Trend Follow"] : ["Reversal"],
-      session: sessions[index % sessions.length],
-      strategy: strategies[index % strategies.length],
-      model: index % 2 === 0 ? "Breaker" : "FVG",
-      tradeIdea: "Temporary mock trade for UI development.",
-      comments: "Replace with real trade history once hooks are connected.",
-      rulesFollowed: ["Followed trading plan", "Respected risk management"],
-      chartImageUrl: undefined,
-      createdAt: startDateTime,
-    };
-  });
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -251,7 +197,15 @@ function LoadingRows() {
   );
 }
 
-function DeleteButton({ trade }: { trade: Trade }) {
+function DeleteButton({
+  trade,
+  isDeleting,
+  onDelete,
+}: {
+  trade: Trade;
+  isDeleting: boolean;
+  onDelete: (trade: Trade) => Promise<void>;
+}) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -287,11 +241,14 @@ function DeleteButton({ trade }: { trade: Trade }) {
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => {}}
+            onClick={() => {
+              void onDelete(trade);
+            }}
             className="bg-rose-600 hover:bg-rose-700 text-white"
+            disabled={isDeleting}
             data-ocid="delete-confirm"
           >
-            Delete
+            {isDeleting ? "Deleting..." : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -310,8 +267,11 @@ const INSTRUMENT_FILTERS: Array<"All" | Instrument> = [
 ];
 
 export const TradingHistory = () => {
-  const trades = generateMockTrades();
-  const isLoading = false;
+  const queryClient = useQueryClient();
+  const { data: trades = [], isLoading } = useQuery({
+    queryKey: ["trades"],
+    queryFn: api.getTrades,
+  });
 
   const [sortKey, setSortKey] = useState<SortKey>("startDateTime");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -323,6 +283,17 @@ export const TradingHistory = () => {
     dateTo: "",
   });
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [deletingTradeId, setDeletingTradeId] = useState<string | null>(null);
+
+  const deleteTrade = useMutation({
+    mutationFn: api.deleteTrade,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trades"] }),
+        queryClient.invalidateQueries({ queryKey: ["analytics", "overview"] }),
+      ]);
+    },
+  });
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
@@ -345,6 +316,33 @@ export const TradingHistory = () => {
   function clearFilters() {
     setFilters({ instrument: "All", search: "", dateFrom: "", dateTo: "" });
     setPage(1);
+  }
+
+  async function handleDeleteTrade(trade: Trade) {
+    try {
+      setDeletingTradeId(trade.id);
+      toast.loading(`Deleting ${trade.pair} trade...`, {
+        id: `delete-trade-${trade.id}`,
+      });
+      await deleteTrade.mutateAsync(trade.id);
+      if (selectedTrade?.id === trade.id) {
+        setSelectedTrade(null);
+      }
+      toast.success(`${trade.pair} trade deleted successfully.`, {
+        id: `delete-trade-${trade.id}`,
+      });
+    } catch (error) {
+      toast.dismiss(`delete-trade-${trade.id}`);
+      toast.error(
+        isApiError(error)
+          ? (error.payload.message ?? "Failed to delete trade.")
+          : error instanceof Error
+            ? error.message
+            : "Failed to delete trade.",
+      );
+    } finally {
+      setDeletingTradeId(null);
+    }
   }
 
   const hasActiveFilters =
@@ -625,7 +623,11 @@ export const TradingHistory = () => {
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
-                          <DeleteButton trade={trade} />
+                          <DeleteButton
+                            trade={trade}
+                            isDeleting={deletingTradeId === trade.id}
+                            onDelete={handleDeleteTrade}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

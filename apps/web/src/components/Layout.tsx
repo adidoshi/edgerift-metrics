@@ -1,8 +1,9 @@
 import { Button } from "../components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "../components/ui/sheet";
+import { useTheme } from "../hooks/use-theme";
 import { cn } from "../lib/utils";
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar, SidebarContent } from "./Sidebar";
 
 interface LayoutProps {
@@ -12,6 +13,15 @@ interface LayoutProps {
 
 export function Layout({ children, className }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+
+    return () => {
+      document.documentElement.classList.remove("dark");
+    };
+  }, [theme]);
 
   return (
     <div className="min-h-screen bg-background flex">
