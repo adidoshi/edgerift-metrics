@@ -4,12 +4,12 @@ import {
   mentorReportResponseSchema,
   type MentorReportPeriod,
 } from "@edgerift/contracts";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
-import { AiReportModel } from "../models/AiReport";
-import { TradeModel } from "../models/Trade";
-import { UserModel } from "../models/User";
-import { env } from "../config/env";
-import { mentorReportService } from "../services/mentor-report";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { AiReportModel } from "../models/AiReport.js";
+import { TradeModel } from "../models/Trade.js";
+import { UserModel } from "../models/User.js";
+import { env } from "../config/env.js";
+import { mentorReportService } from "../services/mentor-report.js";
 
 export const analyticsRouter = Router();
 

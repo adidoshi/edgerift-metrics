@@ -1,34 +1,14 @@
 import { Router } from "express";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import multer from "multer";
 import { createTradeSchema } from "@edgerift/contracts";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
-import { TradeModel } from "../models/Trade";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { TradeModel } from "../models/Trade.js";
+import { uploadTradeChart } from "../services/cloudinary.js";
 
 export const tradesRouter = Router();
 
-const routeDirectory = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDirectory = path.resolve(routeDirectory, "../../uploads/trades");
-
-fs.mkdirSync(uploadsDirectory, { recursive: true });
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, callback) => {
-      callback(null, uploadsDirectory);
-    },
-    filename: (_req, file, callback) => {
-      const extension = path.extname(file.originalname).toLowerCase();
-      const safeBaseName = path
-        .basename(file.originalname, extension)
-        .replace(/[^a-zA-Z0-9-_]/g, "-")
-        .toLowerCase();
-
-      callback(null, `${Date.now()}-${safeBaseName}${extension}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, callback) => {
     const allowedMimeTypes = ["image/png", "image/jpeg", "image/jpg"];
@@ -122,7 +102,7 @@ const normalizeDirection = (value: unknown): "Buy" | "Sell" | undefined => {
 
 const normalizeTradePayload = (
   req: AuthenticatedRequest,
-  uploadedFile?: Express.Multer.File,
+  chartImageUrl?: string,
 ) => ({
   entryAt: normalizeDateTime(req.body.entryAt ?? req.body.startDateTime),
   exitAt: normalizeDateTime(req.body.exitAt ?? req.body.endDateTime),
@@ -154,12 +134,10 @@ const normalizeTradePayload = (
     typeof req.body.comments === "string" ? req.body.comments.trim() : "",
   rulesFollowed: parseStringArray(req.body.rulesFollowed),
   chartImageUrl:
-    uploadedFile?.filename !== undefined
-      ? `/uploads/trades/${uploadedFile.filename}`
-      : typeof req.body.chartImageUrl === "string" &&
-          req.body.chartImageUrl.trim()
-        ? req.body.chartImageUrl.trim()
-        : undefined,
+    chartImageUrl ??
+    (typeof req.body.chartImageUrl === "string" && req.body.chartImageUrl.trim()
+      ? req.body.chartImageUrl.trim()
+      : undefined),
 });
 
 tradesRouter.use(requireAuth);
@@ -184,8 +162,11 @@ tradesRouter.get("/", async (req: AuthenticatedRequest, res) => {
 
 tradesRouter.post("/", upload.any(), async (req: AuthenticatedRequest, res) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+  const uploadedImageUrl = files[0]
+    ? await uploadTradeChart(files[0])
+    : undefined;
   const parsed = createTradeSchema.safeParse(
-    normalizeTradePayload(req, files[0]),
+    normalizeTradePayload(req, uploadedImageUrl),
   );
   if (!parsed.success) {
     res
@@ -228,15 +209,6 @@ tradesRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
   if (!trade) {
     res.status(404).json({ message: "Trade not found" });
     return;
-  }
-
-  if (trade.chartImageUrl?.startsWith("/uploads/trades/")) {
-    const imagePath = path.resolve(
-      uploadsDirectory,
-      path.basename(trade.chartImageUrl),
-    );
-
-    fs.promises.unlink(imagePath).catch(() => undefined);
   }
 
   await trade.deleteOne();

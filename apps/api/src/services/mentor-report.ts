@@ -4,7 +4,7 @@ import {
   type MentorReport,
   type MentorReportPeriod,
 } from "@edgerift/contracts";
-import { env } from "../config/env";
+import { env } from "../config/env.js";
 
 type TradeForReport = {
   entryAt: Date;
