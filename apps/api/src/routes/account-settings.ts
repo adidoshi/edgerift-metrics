@@ -3,8 +3,8 @@ import {
   accountSettingsSchema,
   updateAccountSettingsSchema,
 } from "@edgerift/contracts";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
-import { UserModel } from "../models/User";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { UserModel } from "../models/User.js";
 
 export const accountSettingsRouter = Router();
 

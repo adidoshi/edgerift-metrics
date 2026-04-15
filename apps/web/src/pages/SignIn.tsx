@@ -3,7 +3,7 @@ import { api } from "../lib/api";
 import { authStore } from "../lib/auth";
 import { isApiError } from "../lib/api";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { LogIn, ShieldCheck, TrendingUp, Zap, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -199,12 +199,14 @@ export default function SignIn() {
                 style={{ color: "oklch(0.80 0.25 262)" }}
               />
             </div>
-            <span
+
+            <Link
               className="font-display text-2xl font-bold"
               style={{ color: "oklch(0.96 0 0)" }}
+              to="/"
             >
-              TradeFlow
-            </span>
+              Edgerift Metrics
+            </Link>
           </div>
           <p className="font-mono text-xs" style={{ color: "oklch(0.62 0 0)" }}>
             Professional Trading Analytics
@@ -233,7 +235,8 @@ export default function SignIn() {
               Welcome back
             </h1>
             <p className="text-sm" style={{ color: "oklch(0.62 0 0)" }}>
-              Sign in to your TradeFlow account to continue tracking your edge.
+              Sign in to your Edgerift Metrics account to continue tracking your
+              edge.
             </p>
           </div>
 
@@ -381,7 +384,7 @@ export default function SignIn() {
             <Button
               type="submit"
               size="lg"
-              className="w-full font-display font-semibold text-base mt-2 relative overflow-hidden transition-smooth"
+              className="w-full font-display font-semibold text-base mt-2 relative overflow-hidden transition-smooth cursor-pointer"
               style={{
                 background: isLoading
                   ? "oklch(0.60 0.18 262)"
@@ -420,11 +423,11 @@ export default function SignIn() {
             className="text-center text-sm"
             style={{ color: "oklch(0.55 0 0)" }}
           >
-            New to TradeFlow?{" "}
+            New to Edgerift Metrics?{" "}
             <button
               type="button"
               onClick={() => navigate({ to: "/signup" })}
-              className="font-semibold transition-smooth hover:underline"
+              className="font-semibold transition-smooth hover:underline cursor-pointer"
               style={{ color: "oklch(0.78 0.21 262)" }}
               data-ocid="signin.signup_link"
             >

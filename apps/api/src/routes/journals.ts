@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createJournalSchema } from "@edgerift/contracts";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
-import { JournalModel } from "../models/Journal";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { JournalModel } from "../models/Journal.js";
 
 export const journalsRouter = Router();
 

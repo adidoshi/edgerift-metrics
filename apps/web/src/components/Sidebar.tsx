@@ -60,7 +60,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
             <TrendingUp className="w-4 h-4 text-primary-foreground" />
           </div>
           <span className="text-lg font-bold font-display text-sidebar-foreground tracking-tight">
-            TradeFlow
+            Edgerift Metrics
           </span>
         </div>
         {onClose && (
@@ -112,7 +112,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2.5 font-medium transition-smooth text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          className="w-full justify-start gap-2.5 font-medium transition-smooth text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground cursor-pointer"
           onClick={() => {
             toggleTheme();
             onClose?.();
@@ -167,7 +167,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start gap-2.5 font-medium transition-smooth text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="w-full justify-start gap-2.5 font-medium transition-smooth text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer"
               onClick={() => {
                 authStore.clearAuth();
                 toast.success("You have been logged out.", {
@@ -186,7 +186,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start gap-2.5 font-medium transition-smooth text-primary hover:bg-primary/10 hover:text-primary"
+            className="w-full justify-start gap-2.5 font-medium transition-smooth text-primary hover:bg-primary/10 hover:text-primary cursor-pointer"
             onClick={() => navigate({ to: "/signin" })}
             data-ocid="nav-signin-button"
           >
@@ -199,7 +199,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
       {/* Footer */}
       <div className="px-4 py-4 border-t border-sidebar-border">
         <p className="text-xs text-sidebar-foreground/40 font-mono">
-          v1.0 · TradeFlow
+          v1.0 · Edgerift Metrics
         </p>
       </div>
     </div>

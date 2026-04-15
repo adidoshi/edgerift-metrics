@@ -56,7 +56,7 @@ export function Layout({ children, className }: LayoutProps) {
           </Button>
           <div className="flex items-center gap-2">
             <span className="font-bold font-display text-foreground text-base">
-              TradeFlow
+              Edgerift Metrics
             </span>
           </div>
         </header>
@@ -67,14 +67,14 @@ export function Layout({ children, className }: LayoutProps) {
         {/* Footer */}
         <footer className="bg-muted/40 border-t border-border px-6 py-4">
           <p className="text-xs text-muted-foreground text-center">
-            © {new Date().getFullYear()}. Built with love using{" "}
+            © {new Date().getFullYear()}. Built by Aditya Doshi {`</>`}{" "}
             <a
-              href={`https://caffeine.ai}`}
+              href={`https://adityadoshi.netlify.app}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline transition-smooth"
             >
-              caffeine.ai
+              Portfolio
             </a>
           </p>
         </footer>
