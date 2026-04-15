@@ -12,10 +12,8 @@ for (const envPath of [path.join(apiDirectory, ".env.local")]) {
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 3001),
-  mongoUri:
-    process.env.MONGODB_URI ??
-    "mongodb+srv://adidoshi_db_user:N2uJ7OsvmjZsPfQn@edgerift-metrics-cluste.sdme5mv.mongodb.net/",
-  jwtSecret: process.env.JWT_SECRET ?? "replace-me",
+  mongoUri: process.env.MONGODB_URI ?? "",
+  jwtSecret: process.env.JWT_SECRET ?? "",
   openAiApiKey: process.env.OPENAI_API_KEY ?? "",
   openAiModel: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME ?? "",
