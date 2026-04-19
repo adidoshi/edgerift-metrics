@@ -73,6 +73,28 @@ interface FormValues {
   rulesFollowed: string[];
 }
 
+const INITIAL_FORM_VALUES: FormValues = {
+  startDate: undefined,
+  startTime: "09:00",
+  endDate: undefined,
+  endTime: "10:00",
+  instrument: undefined,
+  pair: "",
+  direction: Direction.Buy,
+  rMultiple: "",
+  grossPnL: "",
+  netPnL: "",
+  commissions: "",
+  swapCharges: "",
+  tags: [],
+  session: "",
+  strategy: "",
+  model: "",
+  tradeIdea: "",
+  comments: "",
+  rulesFollowed: [],
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function combineDateAndTime(date: Date, time: string): bigint {
@@ -347,24 +369,7 @@ export const Journal = () => {
     clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
-    defaultValues: {
-      tags: [],
-      rulesFollowed: [],
-      startTime: "09:00",
-      endTime: "10:00",
-      direction: Direction.Buy,
-      rMultiple: "",
-      grossPnL: "",
-      netPnL: "",
-      commissions: "",
-      swapCharges: "",
-      strategy: "",
-      model: "",
-      tradeIdea: "",
-      comments: "",
-      session: "",
-      pair: "",
-    },
+    defaultValues: INITIAL_FORM_VALUES,
   });
 
   useEffect(() => {
@@ -413,13 +418,12 @@ export const Journal = () => {
     const sampleTradeDate = new Date();
 
     reset({
+      ...INITIAL_FORM_VALUES,
       startDate: sampleTradeDate,
-      startTime: "09:00",
       endDate: sampleTradeDate,
       endTime: "10:15",
       instrument: Instrument.Commodity,
       pair: "XAUUSD",
-      direction: Direction.Buy,
       rMultiple: "-1.33",
       grossPnL: "-1325.00",
       netPnL: "1332.5",
@@ -501,7 +505,7 @@ export const Journal = () => {
 
     try {
       await createTrade.mutateAsync(formData);
-      reset();
+      reset(INITIAL_FORM_VALUES);
       setChartFile(null);
       setImageResetToken((current) => current + 1);
       toast.success(
