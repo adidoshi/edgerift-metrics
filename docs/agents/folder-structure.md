@@ -1,0 +1,22 @@
+# Folder Structure: Project Scanning Pointers
+
+- Monorepo root contains `apps/` (main apps) and `packages/` (shared code).
+- `apps/web/` is the React frontend; `apps/api/` is the Express backend.
+- Shared logic, types, and UI live in `packages/`:
+  - `contracts/`: Zod schemas and shared types (used by both web and api)
+  - `ui/`: Shared UI primitives/components
+  - `config/`: Shared TypeScript config presets
+- Frontend source code is in `apps/web/src/`:
+  - `components/`: UI and layout components
+  - `pages/`: Route-level React components
+  - `lib/`: API, auth, and utility logic
+  - `hooks/`: Custom React hooks
+  - `types/`: App-specific TypeScript types
+- Backend source code is in `apps/api/src/`:
+  - `models/`: Mongoose models
+  - `routes/`: Express route modules
+  - `middleware/`: Express middleware
+  - `services/`: Business logic and integrations
+  - `config/`: Environment and config
+- Always check for shared code in `packages/` before duplicating logic.
+- Use `pnpm` and `turborepo` for workspace management and builds.

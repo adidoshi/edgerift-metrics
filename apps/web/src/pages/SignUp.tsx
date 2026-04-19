@@ -3,44 +3,35 @@ import { useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { api, isApiError } from "../lib/api";
 import { authStore } from "../lib/auth";
-import {
-  BarChart3,
-  BookOpen,
-  Calendar,
-  CheckCircle2,
-  TrendingUp,
-  UserPlus,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { CheckCircle2, TrendingUp, UserPlus, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { toast } from "sonner";
 
-const PERKS = [
-  {
-    icon: BookOpen,
-    label: "Trade Journaling",
-    desc: "Log every trade with full context",
-  },
-  {
-    icon: BarChart3,
-    label: "Analytics Dashboard",
-    desc: "Interactive equity curves & win rate",
-  },
-  {
-    icon: Calendar,
-    label: "Calendar View",
-    desc: "Spot your best & worst trading days",
-  },
-  {
-    icon: TrendingUp,
-    label: "Performance Tracking",
-    desc: "Consistency score & R-multiple stats",
-  },
-];
+// const PERKS = [
+// {
+//   icon: BookOpen,
+//   label: "Trade Journaling",
+//   desc: "Log every trade with full context",
+// },
+// {
+//   icon: BarChart3,
+//   label: "Analytics Dashboard",
+//   desc: "Interactive equity curves & win rate",
+// },
+// {
+//   icon: Calendar,
+//   label: "Calendar View",
+//   desc: "Spot your best & worst trading days",
+// },
+// {
+//   icon: TrendingUp,
+//   label: "Performance Tracking",
+//   desc: "Consistency score & R-multiple stats",
+// },
+// ];
 
 interface FormData {
   firstName: string;
@@ -378,22 +369,20 @@ export default function SignUp() {
           }}
         >
           {/* Header */}
-          <div className="mb-7 text-center">
+          <div className="text-center mb-7">
             <h1
-              className="font-display text-2xl font-bold mb-2"
+              className="font-display text-2xl font-bold mb-5"
               style={{ color: "oklch(0.96 0 0)" }}
             >
               Start for free
             </h1>
             <p className="text-sm" style={{ color: "oklch(0.62 0 0)" }}>
-              Create your Edgerift Metrics account and turn your trades into
-              insights.
+              Create your account and turn your trades into insights.
             </p>
           </div>
-
           {/* Perks grid */}
-          <div className="grid grid-cols-2 gap-3 mb-7">
-            {PERKS.map(({ icon: Icon, label, desc }, i) => (
+          {/* <div className="grid grid-cols-2 gap-3 mb-2"> */}
+          {/* {PERKS.map(({ icon: Icon, label, desc }, i) => (
               <motion.div
                 key={label}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -429,15 +418,11 @@ export default function SignUp() {
                   </p>
                 </div>
               </motion.div>
-            ))}
-          </div>
-
+            ))} */}
+          {/* </div> */}
           {/* What you get checklist */}
           <ul className="space-y-2 mb-7">
-            {[
-              "Fully decentralized — your data is yours",
-              "No subscriptions, no credit card required",
-            ].map((item) => (
+            {["Fully decentralized — your data is yours"].map((item) => (
               <li
                 key={item}
                 className="flex items-start gap-2.5 text-sm"
@@ -451,7 +436,6 @@ export default function SignUp() {
               </li>
             ))}
           </ul>
-
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Form error */}
             {errors.form && (
@@ -522,7 +506,6 @@ export default function SignUp() {
               {isLoading ? "Creating account…" : "Create Account"}
             </Button>
           </form>
-
           {/* Divider */}
           <div className="flex items-center gap-3 my-5">
             <div
@@ -540,7 +523,6 @@ export default function SignUp() {
               style={{ background: "oklch(0.22 0 0)" }}
             />
           </div>
-
           {/* Sign in link */}
           <button
             type="button"
@@ -556,19 +538,6 @@ export default function SignUp() {
             Sign In instead
           </button>
         </motion.div>
-
-        {/* Footer note */}
-        <motion.p
-          className="text-center mt-6 text-xs"
-          style={{ color: "oklch(0.38 0 0)" }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.45 }}
-        >
-          Powered by{" "}
-          <span style={{ color: "oklch(0.62 0 0)" }}>Internet Identity</span> —
-          no passwords, no email, fully sovereign.
-        </motion.p>
       </div>
     </div>
   );

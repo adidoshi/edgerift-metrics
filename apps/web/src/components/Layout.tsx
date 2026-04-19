@@ -69,7 +69,7 @@ export function Layout({ children, className }: LayoutProps) {
           <p className="text-xs text-muted-foreground text-center">
             © {new Date().getFullYear()}. Built by Aditya Doshi {`</>`}{" "}
             <a
-              href={`https://adityadoshi.netlify.app}`}
+              href={`https://adityadoshi.netlify.app`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline transition-smooth"
