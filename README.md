@@ -107,6 +107,10 @@ pnpm typecheck
 
 | The worldwide market for trading education, encompassing learning, mentoring, and journaling platforms, is undergoing rapid expansion, driven by the digitalization of finance and increased retail participation. The global trading education market was valued at $1.35 billion in 2024 and is projected to grow at a high compound annual growth rate (CAGR) of 11.8%, reaching an estimated $3.72 billion by 2033.
 
+## Web app demo video
+
+[![Watch Demo](./apps/web/public/assets/images/demo_preview.png)](https://jumpshare.com/s/8dXvE8POrPmgwOeCww3I)
+
 ## Screenshots
 
 ![authPages](./apps/web/public/assets/images/auth_pages.png)
