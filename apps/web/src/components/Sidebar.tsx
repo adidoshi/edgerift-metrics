@@ -12,7 +12,6 @@ import {
   Moon,
   Sun,
   TrendingUp,
-  X,
   LogIn,
   LogOut,
 } from "lucide-react";
@@ -54,7 +53,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border">
       {/* Brand */}
-      <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
+      <div className="flex items-center px-5 py-5 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
             <TrendingUp className="w-4 h-4 text-primary-foreground" />
@@ -63,17 +62,6 @@ function SidebarContent({ onClose }: SidebarContentProps) {
             Edgerift Metrics
           </span>
         </div>
-        {onClose && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-7 w-7 text-sidebar-foreground/60 hover:text-sidebar-foreground"
-            aria-label="Close menu"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        )}
       </div>
 
       {/* Nav */}
