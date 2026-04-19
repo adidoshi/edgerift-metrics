@@ -409,6 +409,41 @@ export const Journal = () => {
 
   const pairOptions = watchedInstrument ? PAIR_OPTIONS[watchedInstrument] : [];
 
+  const fillTestData = () => {
+    const sampleTradeDate = new Date();
+
+    reset({
+      startDate: sampleTradeDate,
+      startTime: "09:00",
+      endDate: sampleTradeDate,
+      endTime: "10:15",
+      instrument: Instrument.Commodity,
+      pair: "XAUUSD",
+      direction: Direction.Buy,
+      rMultiple: "-1.33",
+      grossPnL: "-1325.00",
+      netPnL: "1332.5",
+      commissions: "7.50",
+      swapCharges: "0.00",
+      tags: ["A+ Setup", "London Session"],
+      session: "London",
+      strategy: "Liquidity Sweep Reversal",
+      model: "Morning Range Expansion",
+      tradeIdea:
+        "Price swept Asian session liquidity, reclaimed the range low, and aligned with bullish higher-timeframe structure.",
+      comments:
+        "Execution stayed within plan. Entry was patient, risk was defined, and partials were scaled out at target levels.",
+      rulesFollowed: [
+        "Waited for confirmation",
+        "Respected stop loss",
+        "Followed trading plan",
+      ],
+    });
+    setChartFile(null);
+    setImageResetToken((current) => current + 1);
+    clearErrors();
+  };
+
   const toggleTag = (tag: string) => {
     const current = watchedTags ?? [];
     setValue(
@@ -1096,6 +1131,16 @@ export const Journal = () => {
 
           {/* ── Submit ───────────────────────────────────────────────────── */}
           <div className="pb-8">
+            <Button
+              type="button"
+              variant="outline"
+              data-ocid="fill-test-data"
+              onClick={fillTestData}
+              disabled={isUploadingTrade}
+              className="mb-3 w-full h-12 text-base font-display font-semibold rounded-xl border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary cursor-pointer"
+            >
+              Fill test data automatically
+            </Button>
             <Button
               type="submit"
               data-ocid="submit-trade"
