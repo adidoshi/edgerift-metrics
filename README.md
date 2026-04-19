@@ -109,7 +109,7 @@ pnpm typecheck
 
 ## Web app demo video
 
-[![Watch Demo](./apps/web/public/assets/images/demo_preview.png)](https://jumpshare.com/s/8dXvE8POrPmgwOeCww3I)
+[![Watch Demo](./apps/web/public/assets/images/demo_preview.png)](https://www.loom.com/share/77af0eda7fd646c3a05e642aa9f1b250)
 
 ## Screenshots
 
