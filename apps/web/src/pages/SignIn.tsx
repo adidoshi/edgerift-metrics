@@ -33,6 +33,8 @@ export default function SignIn() {
   const [touched, setTouched] = useState<
     Partial<Record<keyof SignInForm, boolean>>
   >({});
+  const testEmail = "testapp@example.com";
+  const testPassword = "testing@123";
 
   const applyServerError = (error: unknown) => {
     if (!isApiError(error)) {
@@ -398,6 +400,33 @@ export default function SignIn() {
               <LogIn className="mr-2 w-5 h-5" />
               {isLoading ? "Signing in…" : "Sign In"}
             </Button>
+
+            {/* Test user login button */}
+            <div className="mt-3">
+              <Button
+                type="button"
+                size="lg"
+                className="w-full font-display font-semibold text-base relative overflow-hidden transition-smooth cursor-pointer"
+                style={{
+                  background: isLoading
+                    ? "oklch(0.60 0.18 262)"
+                    : "oklch(0.55 0.18 167)",
+                  color: "oklch(0.09 0 0)",
+                  boxShadow: "0 0 20px oklch(0.55 0.18 167 / 0.20)",
+                }}
+                disabled={isLoading}
+                onClick={() => {
+                  loginMutation.mutate({
+                    email: testEmail,
+                    password: testPassword,
+                  });
+                }}
+                data-ocid="signin.test_login_button"
+              >
+                <LogIn className="mr-2 w-5 h-5" />
+                {isLoading ? "Signing in…" : "Login with test creds"}
+              </Button>
+            </div>
           </form>
 
           {/* Divider */}
@@ -435,19 +464,6 @@ export default function SignIn() {
             </button>
           </p>
         </motion.div>
-
-        {/* Footer note */}
-        <motion.p
-          className="text-center mt-6 text-xs"
-          style={{ color: "oklch(0.38 0 0)" }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-        >
-          Powered by{" "}
-          <span style={{ color: "oklch(0.62 0 0)" }}>Internet Identity</span> —
-          no passwords, no email, fully sovereign.
-        </motion.p>
       </div>
     </div>
   );
